@@ -122,6 +122,70 @@ def save_figure(path, main, company, periods=None, datasets=None):
     return path
 
 
+def render_last_digit_figure(last, company, periods=None):
+    """末位数字 0-9 均匀性分布图（含 10% 期望参考线）。"""
+    from PIL import Image, ImageDraw
+
+    obs = [r["p_observed"] for r in last["rows"]]
+    zs = [r["z"] for r in last["rows"]]
+    n = last["n"]
+    exc = last.get("exclusion") or {}
+
+    img = Image.new("RGB", (W, H), BG)
+    d = ImageDraw.Draw(img)
+    name = f"{company['name']}（{company['code']}）" if company else ""
+    d.text((MARGIN + 6, 26), f"{name} 财报金额末位数字分布（0-9 均匀性）",
+           font=_font(30, True), fill=INK)
+    mc = f"{last['mc_p']:.3f}" if last["mc_p"] is not None else "-"
+    sub = (f"自然数据末位应各占 10% · 有效样本 n={n} · χ²={last['chi2']:.2f}"
+           f"（df=9, p={last['p_value']:.3f}）· 蒙特卡洛 p={mc}")
+    if periods:
+        sub = f"覆盖 {periods} 期 · " + sub
+    if exc:
+        sub += (f" · 已剔除明显取整 {exc.get('dropped', 0)} 个"
+                f"（占候选 {exc.get('drop_ratio', 0):.1%}）")
+    d.text((MARGIN + 6, 70), sub, font=_font(16), fill=GREY)
+
+    L, T, LW, LH = 120, 150, 1080, 460
+    top = 0.20
+    for k in range(5):
+        v = top * k / 4
+        y = T + LH - (v / top) * LH
+        d.line((L, y, L + LW, y), fill=GRID, width=1)
+        d.text((L - 52, y - 9), f"{v*100:.0f}%", font=_font(14), fill=GREY)
+    d.line((L, T, L, T + LH), fill=GREY, width=2)
+    d.line((L, T + LH, L + LW, T + LH), fill=GREY, width=2)
+
+    # 10% 期望参考线（虚线）
+    y10 = T + LH - (0.10 / top) * LH
+    for x in range(L, L + LW, 16):
+        d.line((x, y10, x + 8, y10), fill=AMBER_EDGE, width=2)
+    d.text((L + 12, y10 - 24), "期望 10%", font=_font(14), fill=AMBER_EDGE)
+
+    slot = LW / 10
+    bw = slot * 0.5
+    for i, dig in enumerate(range(10)):
+        cx = L + slot * i + slot / 2
+        v = obs[i]
+        y1 = T + LH - (v / top) * LH
+        color = RED if abs(zs[i]) > 1.96 else BLUE
+        d.rectangle((cx - bw / 2, y1, cx + bw / 2, T + LH), fill=color)
+        d.text((cx, y1 - 34), f"{v*100:.1f}%", font=_font(13), fill=color, anchor="ma")
+        d.text((cx, y1 - 18), f"z={zs[i]:+.1f}", font=_font(11), fill=GREY, anchor="ma")
+        d.text((cx, T + LH + 12), str(dig), font=_font(19, True), fill=INK, anchor="ma")
+    d.text((L + LW / 2, T + LH + 48), "末位数字", font=_font(16), fill=INK, anchor="ma")
+    d.text((L, T + LH + 78),
+           "红色柱 = 该数字 |z|>1.96（显著偏多/偏少）；整份分布是否均匀以卡方与蒙特卡洛检验为准",
+           font=_font(14), fill=GREY)
+    return img
+
+
+def save_last_digit_figure(path, last, company, periods=None):
+    img = render_last_digit_figure(last, company, periods)
+    img.save(path)
+    return path
+
+
 def mad_p_curve(n, sims=20000):
     """（保留接口）模拟 MAD 的 95% 分位，供解读参考。"""
     try:

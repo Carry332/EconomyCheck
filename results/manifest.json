@@ -8,7 +8,8 @@
     "file": "1202043615.PDF",
     "bytes": 2242744,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2016年报",
@@ -19,7 +20,8 @@
     "file": "1203420342.PDF",
     "bytes": 2384151,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2017年报",
@@ -30,7 +32,8 @@
     "file": "1204830862.PDF",
     "bytes": 2334195,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2018年报",
@@ -41,7 +44,8 @@
     "file": "1205948056.PDF",
     "bytes": 2332313,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2019年报",
@@ -52,7 +56,8 @@
     "file": "1207528494.PDF",
     "bytes": 2968268,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2020年报",
@@ -63,7 +68,8 @@
     "file": "1209842617.PDF",
     "bytes": 3433553,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2021年报",
@@ -74,7 +80,8 @@
     "file": "1212686226.PDF",
     "bytes": 5089202,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2022年报",
@@ -85,7 +92,8 @@
     "file": "1216257679.PDF",
     "bytes": 3454224,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2023年报",
@@ -96,7 +104,8 @@
     "file": "1219429902.PDF",
     "bytes": 3761844,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2024年报",
@@ -107,7 +116,8 @@
     "file": "1222846861.PDF",
     "bytes": 3757041,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2025年报",
@@ -118,7 +128,8 @@
     "file": "1225018561.PDF",
     "bytes": 1280437,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2026H1",
@@ -129,7 +140,8 @@
     "file": "1225509977.PDF",
     "bytes": 960107,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   },
   {
     "period": "2026Q1",
@@ -140,6 +152,7 @@
     "file": "1225257260.PDF",
     "bytes": 173444,
     "is_summary": false,
-    "is_hk": false
+    "is_hk": false,
+    "is_english": false
   }
 ]

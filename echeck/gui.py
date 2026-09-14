@@ -234,6 +234,19 @@ class App(tk.Tk):
         ttk.Label(gb, text="（红色 = 该首位数字偏离超过 5% 显著水平）",
                   style="Hint.TLabel").pack(side="left", padx=10)
 
+        # 末位数字图
+        g2 = ttk.Frame(inner)
+        inner.add(g2, text=" 末位数字分布图 ")
+        self.canvas2 = tk.Canvas(g2, background="white", highlightthickness=0)
+        self.canvas2.pack(fill="both", expand=True)
+        self.canvas2.bind("<Configure>", lambda e: self._redraw_last_chart())
+        gb2 = ttk.Frame(g2)
+        gb2.pack(fill="x")
+        ttk.Button(gb2, text="导出图片",
+                   command=self.export_last_chart).pack(side="left")
+        ttk.Label(gb2, text="（末位数字应各占 10%；已自动剔除整元/整百等明显取整数）",
+                  style="Hint.TLabel").pack(side="left", padx=10)
+
         # 检验结论
         c = ttk.Frame(inner)
         inner.add(c, text=" 检验结论 ")
@@ -266,8 +279,8 @@ class App(tk.Tk):
         self.tv_digits = ttk.Treeview(
             dm, columns=("d", "obs", "po", "pe", "exp", "diff", "z", "ratio"),
             show="headings", height=12)
-        for col, t, w in (("d", "首位数字", 80), ("obs", "观测数", 80),
-                          ("po", "实际占比", 90), ("pe", "Benford 期望", 110),
+        for col, t, w in (("d", "数字", 80), ("obs", "观测数", 80),
+                          ("po", "实际占比", 90), ("pe", "期望占比", 110),
                           ("exp", "期望频数", 90), ("diff", "偏差", 90),
                           ("z", "z 统计量", 90), ("ratio", "实际/期望", 90)):
             self.tv_digits.heading(col, text=t)
@@ -716,6 +729,26 @@ class App(tk.Tk):
             t.insert("end", f"   {row['digit']}    {row['observed']:>6}   "
                             f"{row['p_observed']:>7.2%}   {row['p_benford']:>7.2%}   "
                             f"{row['diff']:>+7.2%}\n")
+
+        # 末位数字（0-9 均匀性）
+        from . import stats as _stats
+        last = _stats.last_digit_result(res.results)
+        if last:
+            exc = last.get("exclusion") or {}
+            t.insert("end", "\n" + "─" * 62 + "\n")
+            t.insert("end", "末位数字 0-9 均匀性检验：\n")
+            t.insert("end", f"  候选 {exc.get('candidates', '-')} 个 → 剔除明显取整 "
+                            f"{exc.get('dropped', '-')} 个"
+                            f"（{exc.get('drop_ratio', 0):.1%}）→ 有效 n = {last['n']}\n")
+            t.insert("end", f"  卡方 χ² = {last['chi2']:.2f}（df=9）  p = {last['p_value']:.4f}"
+                            + (f"   蒙特卡洛 p = {last['mc_p']:.4f}\n"
+                               if last["mc_p"] is not None else "\n"))
+            t.insert("end", f"  结论：{last['verdict']}\n")
+            t.insert("end", "  末位   观测数   实际占比   期望   偏差\n")
+            for row in last["rows"]:
+                t.insert("end", f"   {row['digit']}    {row['observed']:>6}   "
+                                f"{row['p_observed']:>7.2%}   {row['p_benford']:>7.2%}   "
+                                f"{row['diff']:>+7.2%}\n")
         t.configure(state="disabled")
 
         # 校验文本
@@ -741,6 +774,7 @@ class App(tk.Tk):
 
         self._fill_details()
         self._render_chart()
+        self._render_last_chart()
         self._show_digits()
         self.nb.select(2)
 
@@ -774,6 +808,39 @@ class App(tk.Tk):
         self._last_draw = size
         self.canvas.delete("all")
         self.canvas.create_image(cw / 2 + 8, ch / 2 + 8, image=self._img_ref)
+
+    def _render_last_chart(self):
+        """末位数字分布图。"""
+        if not self.result:
+            return
+        from . import stats, viz
+        last = stats.last_digit_result(self.result.results)
+        if not last:
+            return
+        try:
+            img = viz.render_last_digit_figure(last, self.result.company,
+                                               periods=len(self.result.reports))
+        except Exception as e:  # noqa: BLE001
+            self._append_log(f"[警告] 末位数字绘图失败：{e}")
+            return
+        self._last_chart_img = img
+        self._redraw_last_chart()
+
+    def _redraw_last_chart(self):
+        if getattr(self, "_last_chart_img", None) is None:
+            return
+        from PIL import Image, ImageTk
+        cw = max(self.canvas2.winfo_width(), 200) - 16
+        ch = max(self.canvas2.winfo_height(), 200) - 16
+        iw, ih = self._last_chart_img.size
+        s = min(cw / iw, ch / ih)
+        if s <= 0:
+            return
+        size = (max(1, int(iw * s)), max(1, int(ih * s)))
+        img = self._last_chart_img.resize(size, Image.LANCZOS)
+        self._img_ref2 = ImageTk.PhotoImage(img)
+        self.canvas2.delete("all")
+        self.canvas2.create_image(cw / 2 + 8, ch / 2 + 8, image=self._img_ref2)
 
     def _show_digits(self):
         if not self.result:
@@ -835,6 +902,18 @@ class App(tk.Tk):
                                          initialfile="benford_first_digit.png")
         if p:
             self._chart_img.save(p)
+            self._append_log(f"[导出] {p}")
+
+    def export_last_chart(self):
+        img = getattr(self, "_last_chart_img", None)
+        if img is None:
+            messagebox.showinfo("提示", "还没有末位数字分布图")
+            return
+        p = filedialog.asksaveasfilename(defaultextension=".png",
+                                         filetypes=[("PNG", "*.png")],
+                                         initialfile="last_digit.png")
+        if p:
+            img.save(p)
             self._append_log(f"[导出] {p}")
 
     def _need_result(self):

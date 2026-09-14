@@ -147,6 +147,10 @@ def main():
     chart_out = OUT / "00_chart_as_displayed.png"
     app._chart_img.save(chart_out)
     print(f"  图表断言 OK：显示图像 {app._chart_img.size} -> {chart_out}")
+    # 末位数字分布图断言
+    assert getattr(app, "_last_chart_img", None) is not None, "末位数字分布图未生成"
+    assert len(app.canvas2.find_all()) > 0, "末位数字画布未绘制图像"
+    print(f"  末位数字图断言 OK：显示图像 {app._last_chart_img.size}")
     print(f"  画布 {app.canvas.winfo_width()}x{app.canvas.winfo_height()}，"
           f"绘制尺寸 {getattr(app, '_last_draw', None)}，"
           f"窗口 {app.winfo_width()}x{app.winfo_height()}")
@@ -208,7 +212,7 @@ def online_test():
     app.do_search()
     wait_for(app, lambda a: app.lbl_found.cget("text") != "正在搜索「字节跳动」…",
              60, "搜索非上市公司")
-    app.update()
+    settle(app)
     print(f"  搜索「字节跳动」-> {app.lbl_found.cget('text').strip()}；"
           f"提示条={'已显示' if app.lbl_empty.winfo_ismapped() else '未显示'}")
     assert "未找到" in app.lbl_found.cget("text")
@@ -252,6 +256,12 @@ def online_test():
     print("GUI 联网自检通过（含多线程与完整流程）")
 
 
+def settle(app, n=6):
+    """页签切换/布局后需要几个事件循环才稳定（真实程序是持续事件循环）。"""
+    for _ in range(n):
+        app.update()
+
+
 def wait_for(app, cond, timeout, what):
     """在保持事件循环转动的前提下等待条件成立。"""
     t0 = time.time()
@@ -267,9 +277,9 @@ def wait_for(app, cond, timeout, what):
 def empty_state_test(app):
     """搜索无结果 / 非 A 股证券时必须有可见反馈，且不得进入分析流程。"""
     app.nb.select(0)          # 隐藏的页签里控件不会被 map，先切到①页
-    app.update()
+    settle(app)
     app._handle(("companies", [], "字节跳动"))
-    app.update()
+    settle(app)
     assert "未找到" in app.lbl_found.cget("text"), app.lbl_found.cget("text")
     assert app.lbl_empty.winfo_ismapped(), "空结果提示条未显示"
     assert "字节跳动" in app.lbl_empty.cget("text")
@@ -279,13 +289,13 @@ def empty_state_test(app):
     app._handle(("companies", [{"code": "00700", "name": "腾讯控股",
                                 "org_id": "gshk0000700", "pinyin": "txkg",
                                 "category": "港股", "delisted": False}], "腾讯"))
-    app.update()
+    settle(app)
     found = app.lbl_found.cget("text")
     assert "非 A 股" in found, found
     before = app.company
     app.tv_company.selection_set("c0")
     app.use_company()
-    app.update()
+    settle(app)
     assert app.company == before, "港股不应被当作可分析标的使用"
     assert "不支持" in app.lbl_empty.cget("text") or "港股" in app.lbl_empty.cget("text")
     print("  非 A 股拦截 OK：" + found.strip() + " / 未进入分析流程")
@@ -294,7 +304,7 @@ def empty_state_test(app):
     app.nb.select(1)
     app.reports = []
     app._fill_reports()
-    app.update()
+    settle(app)
     assert app.lbl_rep_hint.winfo_ismapped(), "空报告列表提示未显示"
     print("  空报告提示 OK：" + app.lbl_rep_hint.cget("text")[:24] + "…")
 
@@ -304,7 +314,7 @@ def empty_state_test(app):
     app._handle(("companies", [
         {"code": "601799", "name": "星宇股份", "org_id": "9900017668",
          "pinyin": "xygf", "category": "A股", "delisted": False}], "601799"))
-    app.update()
+    settle(app)
     assert "找到 1 家" in app.lbl_found.cget("text"), app.lbl_found.cget("text")
     assert not app.lbl_empty.winfo_ismapped(), "正常结果不应显示空提示条"
     print("  正常结果反馈 OK：" + app.lbl_found.cget("text").strip())

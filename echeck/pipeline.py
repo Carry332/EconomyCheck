@@ -259,6 +259,10 @@ def run_analysis(company, reports, progress=None, cancel=None, base_dir=None,
         try:
             viz.save_figure(dirs["results"] / "benford_first_digit.png", res.main,
                             company, periods=len(reports), datasets=res.results)
+            last = stats.last_digit_result(res.results)
+            if last:
+                viz.save_last_digit_figure(dirs["results"] / "last_digit.png",
+                                           last, company, periods=len(reports))
         except Exception as e:  # noqa: BLE001
             res.warnings.append(f"绘图失败：{e}")
     res.seconds = time.time() - t0
