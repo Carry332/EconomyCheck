@@ -36,13 +36,28 @@
 
 ## 快速开始
 
+### 方式 A：下载现成的可执行文件（免装 Python）
+
+到 [Releases](https://github.com/Carry332/EconomyCheck/releases/latest) 下载：
+
+| 文件 | 说明 |
+|---|---|
+| `EconomyCheck-v1.0.0-win64-portable.zip` | **便携包（推荐）**：解压即用，启动快，内含 GUI 与 CLI |
+| `EconomyCheck-v1.0.0-onefile.zip` | 单文件版：每个程序仅一个 exe，便于单独拷贝（启动需解压到临时目录） |
+| `SHA256SUMS.txt` | 压缩包校验和 |
+
+无需安装 Python 与依赖；解压后双击 `EconomyCheck.exe` 即可。需要联网（数据取自巨潮资讯网官方披露）。
+未做代码签名，首次运行 SmartScreen 可能提示"未知发布者" → 「更多信息」→「仍要运行」。
+
+### 方式 B：从源码运行
+
 ### 1. 安装依赖
 
 依赖装在项目内的 `.pylibs`，不污染全局 Python 环境：
 
 ```powershell
 $env:PIP_USER="0"
-python -m pip install --no-user --target .\.pylibs pdfplumber pillow pypdfium2 numpy
+python -m pip install --no-user --target .\.pylibs -r requirements.txt
 ```
 
 ### 2. 启动图形界面
@@ -281,6 +296,11 @@ python tools\regression_companies.py
 
 # 复算星宇股份交付结果并与工具输出对账
 python tools\verify_delivery.py
+
+# 打包 Windows 可执行文件（需先装 pyinstaller：pip install --target .\.pylibs pyinstaller）
+python tools\make_icon.py            # 生成 assets/icon.ico
+python tools\build_exe.py            # 同时产出便携包与单文件包到 build/release/
+python tools\build_exe.py --mode onedir   # 只做便携包（启动快）
 ```
 
 当前回归结果（每家公司取最新年报）：

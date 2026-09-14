@@ -4,12 +4,29 @@ import os
 import pathlib
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+def is_frozen() -> bool:
+    """是否运行在打包后的可执行文件里（PyInstaller 等）。"""
+    return bool(getattr(sys, "frozen", False))
+
+
+def app_dir() -> pathlib.Path:
+    """应用目录。
+
+    - 源码运行：项目根目录；
+    - 打包运行：可执行文件所在目录 —— 数据/日志/结果都写在 exe 旁边，便于便携使用。
+    """
+    if is_frozen():
+        return pathlib.Path(sys.executable).resolve().parent
+    return pathlib.Path(__file__).resolve().parent.parent
+
+
+ROOT = app_dir()
 PYLIBS = ROOT / ".pylibs"
 DATA_ROOT = ROOT / "data"
 
-# 依赖装在 .pylibs 里（不污染全局环境），导入前先挂到 sys.path
-if PYLIBS.is_dir() and str(PYLIBS) not in sys.path:
+# 依赖装在 .pylibs 里（不污染全局环境），导入前先挂到 sys.path；
+# 打包后依赖已在包内，不需要也不应再找 .pylibs。
+if not is_frozen() and PYLIBS.is_dir() and str(PYLIBS) not in sys.path:
     sys.path.insert(0, str(PYLIBS))
 
 

@@ -14,11 +14,13 @@ import sys
 import traceback
 
 BASE = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(BASE))
+if str(BASE) not in sys.path:
+    sys.path.insert(0, str(BASE))
 
-from echeck import config  # noqa: E402,F401  （把工作区内的 .pylibs 挂到 sys.path）
+from echeck import config  # noqa: E402  （源码运行时挂载 .pylibs，打包后自动跳过）
 
-LOGDIR = BASE / "logs"
+# 打包成 exe 后 __file__ 指向临时解包目录，日志要写在 exe 旁边
+LOGDIR = config.ROOT / "logs"
 LOGFILE = LOGDIR / "gui.log"
 
 

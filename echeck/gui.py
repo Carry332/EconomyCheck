@@ -23,10 +23,10 @@ MONO = ("Consolas", 9)
 
 
 def _log(msg):
-    """写 logs/gui.log，便于 pythonw 无控制台时排查。"""
+    """写 logs/gui.log，便于 pythonw 或打包后的 exe 在无控制台时排查。"""
     try:
         import datetime
-        p = pathlib.Path(__file__).resolve().parent.parent / "logs" / "gui.log"
+        p = ROOT / "logs" / "gui.log"
         p.parent.mkdir(parents=True, exist_ok=True)
         with p.open("a", encoding="utf-8") as f:
             f.write(f"[{datetime.datetime.now():%Y-%m-%d %H:%M:%S}] GUI {msg}\n")

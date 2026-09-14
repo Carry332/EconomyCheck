@@ -15,6 +15,24 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from echeck import cninfo, pipeline  # noqa: E402
 
 
+def fix_console_encoding():
+    """控制台/管道编码兜底。
+
+    Windows 中文控制台默认 GBK，打印「χ²」这类字符会抛 UnicodeEncodeError；
+    输出重定向到文件/管道时同样会中招（曾导致打包后的 exe 跑完分析最后一步崩溃）。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if stream is None:
+            continue
+        try:
+            if stream.isatty():
+                stream.reconfigure(errors="replace")          # 真控制台：保留原生行为
+            else:
+                stream.reconfigure(encoding="utf-8", errors="replace")  # 重定向：给 UTF-8
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def parse_args():
     ap = argparse.ArgumentParser(description="上市公司财报首位数字 Benford 检验")
     ap.add_argument("company", help="股票代码或公司简称/拼音")
@@ -30,6 +48,7 @@ def parse_args():
 
 
 def main():
+    fix_console_encoding()
     args = parse_args()
     comps = cninfo.search_companies(args.company, 10)
     if not comps:
