@@ -1,0 +1,44 @@
+# ---- 依赖（用 pip install --target .pylibs 生成，不要提交/打包）----
+.pylibs/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ---- 运行时数据与本地缓存（含第三方年报 PDF、抽取文本）----
+data/
+logs/
+raw/pdf/
+raw/txt/
+raw/*.pdf
+raw/ann_*.json
+raw/sections_debug.txt
+*.part
+*.tmp
+
+# ---- 工具内部痕迹（DSH 编辑轨迹等）----
+.dsh-*
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ---- 虚拟环境 / 构建产物 ----
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+
+# ---- 备份 / 存档 / 本地保存 ----
+*.bak
+*.backup
+*.orig
+*.zip
+backups/
+saves/
+presets/
+out/

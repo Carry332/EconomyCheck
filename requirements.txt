@@ -1,0 +1,7 @@
+# 运行时依赖（安装到项目内的 .pylibs，不污染全局环境）
+#   $env:PIP_USER="0"
+#   python -m pip install --no-user --target .\.pylibs -r requirements.txt
+pypdfium2>=4          # PDF 文本抽取（主路径，速度约为 pdfplumber 的 40 倍）
+pdfplumber>=0.11      # 版式复杂的表格页复核（兜底路径）
+pillow>=9             # 界面截图与分布图绘制
+numpy>=1.24           # 蒙特卡洛 MAD 检验（缺失时自动跳过该检验）

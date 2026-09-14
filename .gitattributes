@@ -1,0 +1,21 @@
+# 换行符策略——非常重要：
+# .bat 必须是 CRLF，否则 cmd.exe 会错误断行导致脚本静默失效
+# （本项目早期就因此出现过「双击启动器只有一闪而过的命令行」的问题）
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+*.py    text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.csv   text eol=lf
+*.txt   text eol=lf
+
+# 二进制：不做任何转换，也不要在 diff 里显示
+*.png   binary
+*.jpg   binary
+*.zip   binary
+*.pdf   binary
+
+# 语言统计时把示例产物归类为文档
+results/*.md      linguist-documentation
+results/gui/*.png linguist-documentation
