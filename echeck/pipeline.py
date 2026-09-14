@@ -47,7 +47,7 @@ def _check(cancel):
 
 # manifest 允许公开的字段（其余如 local/txt/text/_flags 属于本机路径或第三方全文）
 MANIFEST_FIELDS = ("period", "title", "kind", "date", "url", "file", "bytes",
-                   "is_summary", "is_hk")
+                   "is_summary", "is_hk", "is_english")
 
 
 def safe_manifest(reports):
@@ -91,8 +91,13 @@ def _no_data_message(res, diag, texts):
         if d.get("chars") is not None:
             extra = f"（文本 {d['chars']:,} 字符，汉字 {d.get('cjk', 0):,}）"
         lines.append(f"  · {d['period']}：{det}{extra}")
-    scanned = any((d.get("cjk") or 0) < 500 for d in diag)
+    scanned = any((d.get("cjk") or 0) < 500 and (d.get("chars") or 0) < 5000
+                  for d in diag)
+    foreign = any((d.get("cjk") or 0) < 200 and (d.get("chars") or 0) >= 5000
+                  for d in diag)
     lines += ["", "可能原因与建议："]
+    if foreign:
+        lines.append("  · 有的 PDF 几乎没有中文，可能是外文版报告；可改选中文版（列表里英文版会被标注）")
     if scanned:
         lines.append("  · 有的报告几乎抽不到文字，通常是扫描版 PDF，需要 OCR，本工具暂不支持；")
     lines.append("  · 确认勾选的是“年度报告全文”而不是“摘要”；")
@@ -207,9 +212,13 @@ def run_analysis(company, reports, progress=None, cancel=None, base_dir=None,
         if not infos:
             reason = "未找到任何合并报表标题"
         elif len(missing) == 3:
-            reason = ("未定位到合并资产负债表/利润表/现金流量表："
-                      + ("疑似扫描版 PDF（几乎抽不到文字）" if cjk < 500
-                         else "报表标题或版式与预期不符"))
+            if cjk < 200 and len(text) > 5000:
+                reason = ("未定位到合并报表：该 PDF 似为外文版"
+                          "（本工具按中英文报表标题定位，可能是纯英文排版）")
+            elif cjk < 500:
+                reason = "疑似扫描版 PDF（几乎抽不到文字），需要 OCR，本工具暂不支持"
+            else:
+                reason = "报表标题或版式与预期不符"
         elif missing:
             reason = "未定位到：" + "、".join(missing)
         elif len(r) < 10:

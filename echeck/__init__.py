@@ -11,6 +11,6 @@
   gui       tkinter 图形界面
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __license__ = "MIT"
 __copyright__ = "Copyright (c) 2026 Carry"

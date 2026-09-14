@@ -436,9 +436,11 @@ class App(tk.Tk):
         vis = self._visible_reports()
         for i, r in enumerate(vis):
             iid = f"r{i}"
+            kind_label = cninfo.CATEGORIES.get(r["kind"], ("", "其他"))[1]
+            if r.get("is_english"):
+                kind_label += "（英文版）"
             self.tv_report.insert("", "end", iid=iid,
-                                  values=("☐", r["period"],
-                                          cninfo.CATEGORIES.get(r["kind"], ("", "其他"))[1],
+                                  values=("☐", r["period"], kind_label,
                                           r["title"], r["date"]))
         if vis:
             self._show_report_hint("")

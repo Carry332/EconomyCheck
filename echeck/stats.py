@@ -11,7 +11,11 @@ MAD_BANDS = [(0.006, "接近符合 (close conformity)"),
              (float("inf"), "不符合 (nonconformity)")]
 
 EQUITY_LABELS = ("所有者权益（或股东权益）合计", "所有者权益(或股东权益)合计",
-                 "所有者权益合计", "股东权益合计")
+                 "所有者权益合计", "股东权益合计",
+                 "Total equity", "Total owners' equity", "Total shareholders' equity")
+# 资产/负债合计（英文版报表用 Total assets / Total liabilities）
+ASSET_LABELS = ("资产总计", "Total assets")
+LIAB_LABELS = ("负债合计", "Total liabilities")
 
 
 # ---------------- 统计工具（纯 Python 实现，无需 scipy） ----------------
@@ -124,17 +128,35 @@ def analyze(values, name, note=""):
 
 
 # ---------------- 数据集组装 ----------------
+def is_amount_text(v: str) -> bool:
+    """判断一个数值串是否“像报表金额”。
+
+    两种合法口径：
+      · 带两位小数：`1,234,567.89`（人民币元）
+      · 带千分位整数：`23,007,773`（千元/万元口径，英文版或港式报表常见）
+    纯整数（如附注编号 1、页码、年份）不算金额。
+    """
+    v = (v or "").strip()
+    return ("." in v) or ("," in v)
+
+
+def to_amount(v: str):
+    """把金额串转成 float；不能转换时返回 None。"""
+    try:
+        return float(str(v).replace(",", "").replace("，", ""))
+    except (TypeError, ValueError):
+        return None
+
+
 def decimals_of(row):
     out = []
     for i in range(1, 5):
         v = row.get(f"v{i}") or ""
-        if v and "." in v:
-            try:
-                f = float(v)
-            except ValueError:
-                continue
-            if f != 0:
-                out.append(f)
+        if not is_amount_text(v):
+            continue
+        f = to_amount(v)
+        if f is not None and f != 0:
+            out.append(f)
     return out
 
 
@@ -183,27 +205,31 @@ def analyze_all(rows, progress=None):
 
 # ---------------- 数据质量校验 ----------------
 def _num(s):
+    """把金额串（可能带千分位逗号）转成 float。"""
     try:
-        return float(s)
+        return float(str(s).replace(",", "").replace("，", ""))
     except (TypeError, ValueError):
         return None
 
 
 def _first_num(rs, label):
+    """按项目名取本期金额；忽略空格与大小写，支持英文版报表。"""
+    key = label.replace(" ", "").lower()
     prefix_hit = None
     for r in rs:
         it = r["item"].replace(" ", "")
         if not it or not r["v1"]:
             continue
-        if it == label:
+        low = it.lower()
+        if low == key:
             return r["v1"]
-        if prefix_hit is None and len(it) >= 6 and label.startswith(it):
+        if prefix_hit is None and len(it) >= 6 and key.startswith(low):
             prefix_hit = r["v1"]
     return prefix_hit
 
 
 def _equity_num(rs):
-    """所有者权益合计：先按标准项目名匹配，再按关键词兜底。
+    """所有者权益合计：先按标准项目名匹配，再按关键词兜底（中英文都支持）。
 
     有些 PDF 的项目名被换行拆开后拼接得并不完美（例如「益）合计负债和所有者权益（或」），
     只要该行同时含“所有者权益”“合计”且不是“归属于母公司…”或“少数股东权益”，
@@ -217,8 +243,14 @@ def _equity_num(rs):
         it = r["item"].replace(" ", "")
         if not r["v1"] or not it:
             continue
+        low = it.lower()
+        # 中文兜底
         if ("所有者权益" in it and "合计" in it
                 and "归属" not in it and "少数" not in it):
+            return r["v1"], it + "（关键词匹配）"
+        # 英文兜底：Total equity / Total owners' equity（排除 Total liabilities and equity）
+        if (low.startswith("total") and "equity" in low
+                and "liabilit" not in low and "attributable" not in low):
             return r["v1"], it + "（关键词匹配）"
     return None, None
 
@@ -234,8 +266,8 @@ def validate(rows):
     identity = []
     for p in periods:
         rs = by_rep.get(p, [])
-        ta = _first_num(rs, "资产总计")
-        tl = _first_num(rs, "负债合计")
+        ta = next((v for lbl in ASSET_LABELS if (v := _first_num(rs, lbl))), None)
+        tl = next((v for lbl in LIAB_LABELS if (v := _first_num(rs, lbl))), None)
         te, te_label = _equity_num(rs)
         if None in (ta, tl, te):
             identity.append({"period": p, "ok": None, "assets": ta,

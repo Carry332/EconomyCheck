@@ -30,6 +30,12 @@ CATEGORIES = {
 SUPPORTED_CATEGORY = "A股"
 
 _TAG = re.compile(r"<[^>]+>")
+# 同一家公司常同时披露中英文版（如 TCL科技），英文版报表为千元整数口径，中文版优先
+EN_TITLE = re.compile(r"英文版|英文|english", re.I)
+
+
+def is_english_title(title: str) -> bool:
+    return bool(EN_TITLE.search(title or ""))
 
 
 def is_supported(comp) -> bool:
@@ -169,25 +175,32 @@ def list_reports(code: str, org_id: str, kinds=("annual",), page_size: int = 50,
                     "date": date,
                     "is_summary": "摘要" in title,
                     "is_hk": "港股" in title or "H股" in title,
+                    "is_english": is_english_title(title),
                     "file": url.split("/")[-1],
                     "url": f"{STATIC}/{url}",
                     "bytes": 0,
                 })
             if not (data or {}).get("hasMore"):
                 break
-    # 同一报告期常有“全文”和“正文”两个版本（正文不含完整报表），只保留全文
-    def rank(title: str) -> int:
-        if "全文" in title:
-            return 2
-        if "正文" in title:
-            return 1
-        return 0
+    # 同一报告期可能有多份：全文 / 正文（不含完整报表）/ 英文版。
+    # 排序优先级：全文 > 正文 > 其它；中文版 > 英文版（英文版报表是千元整数口径，
+    # 且中文版信息更全）。只有在完全没有中文版时才保留英文版。
+    def rank(r) -> int:
+        t = r["title"]
+        s = 0
+        if "全文" in t:
+            s += 10
+        if "正文" in t:
+            s -= 5
+        if r.get("is_english"):
+            s -= 100
+        return s
 
     best = {}
     for r in out:
         key = (r["kind"], r["period"], r["is_summary"], r["is_hk"])
         cur = best.get(key)
-        if cur is None or rank(r["title"]) > rank(cur["title"]):
+        if cur is None or rank(r) > rank(cur):
             best[key] = r
     out = list(best.values())
     out.sort(key=lambda r: (r["date"], r["title"]), reverse=True)

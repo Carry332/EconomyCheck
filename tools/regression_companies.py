@@ -11,7 +11,8 @@ sys.path.insert(0, str(ROOT))
 from echeck import config  # noqa: F401,E402
 from echeck import cninfo, parse, pdftext, stats  # noqa: E402
 
-DEFAULT = ["601799", "001219", "300750", "600519", "000625", "833171", "688981"]
+DEFAULT = ["601799", "001219", "000100", "300750", "600519", "000625",
+           "833171", "688981"]
 
 
 def check(code):

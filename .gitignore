@@ -42,3 +42,8 @@ backups/
 saves/
 presets/
 out/
+
+# ---- 发布包解压出来的目录（从 Releases 下载解压后不要提交）----
+EconomyCheck-v*/
+EconomyCheck/
+EconomyCheck-CLI/

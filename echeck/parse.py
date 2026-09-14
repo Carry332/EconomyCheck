@@ -26,8 +26,8 @@ HEADER_NOISE = re.compile(r"编制单位|单位[:：]|币种|项目\s*附注|^�
 ENUM_PREFIX = re.compile(
     r"^\s*(?:[（(]\s*\d+\s*[)）]|\d+\s*[.、．]"
     r"|[（(]\s*[一二三四五六七八九十]+\s*[)）]|[一二三四五六七八九十]+\s*[、.])\s*")
-# 标题尾部可接受的补充说明，如“合并资产负债表（续）”
-TITLE_SUFFIX = re.compile(r"^[（(]\s*(续|續|未经审计|未审计)\s*[)）]$")
+# 标题尾部可接受的补充说明（“合并资产负债表（续）”“Consolidated Balance Sheet (Continued)”）
+TITLE_SUFFIX = re.compile(r"^[（(]\s*(续|續|未经审计|未审计|continued|unaudited)\s*[)）]$")
 # 项目名的常见结尾，用于判断被换行拆开的片段拼接是否合理
 LABEL_TAIL = re.compile(r"(合计|总计|小计|净额|余额|收入|成本|费用|收益|损失|利润|现金"
                         r"|支出|资产|负债|权益|准备|储备|股本|公积|股利|利息|账款|款项"
@@ -48,33 +48,53 @@ def line_title(line: str) -> str:
 
 
 def is_title(line: str, marker: str) -> bool:
-    t = line_title(line)
-    if t == marker:
+    """判断一行是否为某张报表的标题（支持中文与英文标题、忽略大小写与空格）。"""
+    t = line_title(line).lower()
+    m = _norm(marker).lower()
+    if t == m:
         return True
-    if t.startswith(marker):
-        return bool(TITLE_SUFFIX.match(t[len(marker):]))
+    if t.startswith(m):
+        return bool(TITLE_SUFFIX.match(t[len(m):].strip()))
     return False
 
 
-ALL_TITLES = {_norm(t) for pair in SECTIONS for t in pair}
+def is_any_title(line: str) -> bool:
+    """是否为一张报表的标题（用于确定当前报表正文的结束位置）。
+
+    除三大表外，还把「股东权益变动表」计入边界 —— 有的公司（如 TCL科技）
+    把合并现金流量表排在股东权益变动表之前，若不算边界会把权益变动表整段吞进现金流量表。
+    """
+    t = line_title(line).lower()
+    return t in ALL_TITLES or bool(EQUITY_CHANGE_TITLE.search(t))
 
 
-def find_section(lines, start_marker: str):
-    """返回 (start_idx, end_idx, info)。end 为下一个任意报表标题所在行。"""
+ALL_TITLES = {_norm(t).lower()
+              for _, starts, ends in SECTIONS for t in (*starts, *ends)}
+# （合并/母公司/公司）股东权益变动表 —— 只作为段落边界，不参与解析
+EQUITY_CHANGE_TITLE = re.compile(r"^(合并|母公司|公司)?(股东|所有者)权益变动表$"
+                                 r"|statements?ofchangesinequity$", re.I)
+
+
+def find_section(lines, start_markers):
+    """返回 (start_idx, end_idx, info)。start_markers 为该报表标题的候选（中文/英文）。
+
+    end 为下一个任意报表标题所在行（含母公司表与外文表标题）。
+    """
     cands = []
     for i, line in enumerate(lines):
-        if not is_title(line, start_marker):
+        if not any(is_title(line, m) for m in start_markers):
             continue
         end = None
         for j in range(i + 1, min(len(lines), i + 400)):
-            if line_title(lines[j]) in ALL_TITLES:
+            if is_any_title(lines[j]):
                 end = j
                 break
         if end is None:
             end = min(len(lines), i + 200)   # 季报最后一张表后面没有别的报表标题
         seg = lines[i:end]
-        head = "".join(seg[:8])
-        has_header = ("编制单位" in head) or ("单位：元" in head) or ("单位:元" in head)
+        head = "".join(seg[:8]).lower()
+        has_header = (("编制单位" in head) or ("单位：元" in head) or ("单位:元" in head)
+                      or ("unit" in head) or ("rmb" in head) or ("note" in head))
         cands.append({"start": i, "end": end, "header": has_header,
                       "nums": sum(len(NUM.findall(x)) for x in seg), "len": len(seg)})
     if not cands:
@@ -138,8 +158,8 @@ def rows_from_text(text: str, period: str, title: str):
         pages.append(cur)
 
     rows, infos = [], []
-    for code, marker, _ in SECTIONS:
-        found = find_section(lines, marker)
+    for code, markers, _ in SECTIONS:
+        found = find_section(lines, markers)
         if not found:
             infos.append({"statement": code, "found": False})
             continue
@@ -159,17 +179,19 @@ def rows_from_text(text: str, period: str, title: str):
                 continue
             raw_vals = [m.group(0) for m in matches]
             # 有的公司附注列是纯数字，例如「货币资金 1 51,690,610,946.50 59,295,822,956.89」，
-            # 那个 1 是附注编号而不是金额：当后面还有带小数的金额时把它丢掉。
+            # 那个 1 是附注编号而不是金额：当后面还有其他金额形态时把它丢掉。
+            # 金额形态 = 带两位小数（元口径）或带千分位（千元/万元等整数口径）
             skip = 0
             v0 = raw_vals[0].lstrip("-")
             if (len(raw_vals) >= 2 and v0.isdigit() and len(v0) <= 3
                     and int(v0) <= 999
-                    and any("." in v for v in raw_vals[1:])):
+                    and any(("." in v or "," in v or "，" in v) for v in raw_vals[1:])):
                 skip = 1
             label = cleaned[: matches[0].start()].strip(" 　:：|")
             if not label:
                 label = rebuild_label(clean, idx)
-            vals = [v.replace(",", "").replace("，", "") for v in raw_vals[skip:]]
+            # 保留千分位（便于下游区分“金额”与“附注编号/页码”），全角逗号统一成半角
+            vals = [v.replace("，", ",") for v in raw_vals[skip:]]
             row = {"report": period, "title": title, "statement": code,
                    "item": label, "n": len(vals)}
             for i in range(4):

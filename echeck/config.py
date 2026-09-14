@@ -61,11 +61,28 @@ def find_font(names) -> str:
 FONT_REG = find_font(CN_FONTS)
 FONT_BOLD = find_font(CN_FONTS_BOLD) or FONT_REG
 
-# 三大合并报表：(代码, 起始标题, 结束标题)
+# 三大合并报表：(代码, 合并报表标题候选, 母公司报表标题候选)
+# 中文标题为主；同时支持英文版年报（部分公司在巨潮同时披露英文版）
 SECTIONS = [
-    ("BS", "合并资产负债表", "母公司资产负债表"),
-    ("IS", "合并利润表", "母公司利润表"),
-    ("CF", "合并现金流量表", "母公司现金流量表"),
+    ("BS",
+     ("合并资产负债表", "Consolidated Balance Sheet",
+      "Consolidated Statements of Financial Position",
+      "Consolidated Statement of Financial Position"),
+     ("母公司资产负债表", "公司资产负债表", "Parent Company Balance Sheet",
+      "Balance Sheet of the Parent Company")),
+    ("IS",
+     ("合并利润表", "Consolidated Income Statement",
+      "Consolidated Statements of Profit or Loss",
+      "Consolidated Statement of Profit or Loss",
+      "Consolidated Statement of Operations"),
+     ("母公司利润表", "公司利润表", "Parent Company Income Statement",
+      "Income Statement of the Parent Company")),
+    ("CF",
+     ("合并现金流量表", "Consolidated Cash Flow Statement",
+      "Consolidated Statement of Cash Flows",
+      "Consolidated Statements of Cash Flows"),
+     ("母公司现金流量表", "公司现金流量表", "Parent Company Cash Flow Statement",
+      "Cash Flow Statement of the Parent Company")),
 ]
 STATEMENT_NAMES = {"BS": "资产负债表", "IS": "利润表", "CF": "现金流量表"}
 
